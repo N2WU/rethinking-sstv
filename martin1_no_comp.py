@@ -4,7 +4,7 @@ import sounddevice as sd
 import matplotlib.pyplot as plt
 
 def martin1(img_array,fs):
-    ms_pix = 0.5/1000 #0.4576/1000
+    ms_pix = 0.4576/1000
     ms_syn = 4.862/1000
     ms_pul = 0.572/1000
     t_pix = np.arange(int(ms_pix*fs))/fs
@@ -57,7 +57,7 @@ def martin1(img_array,fs):
 def martin1_decode(r,fs):
     r_img_array = np.zeros_like(img_array) #jank
     # assume already synchronized
-    ms_pix = 0.5/1000 #0.4576/1000
+    ms_pix = 0.4576/1000
     ms_syn = 4.862/1000
     ms_pul = 0.572/1000
     len_pix = int(ms_pix*fs)
