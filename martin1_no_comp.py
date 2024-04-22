@@ -4,7 +4,7 @@ import sounddevice as sd
 import matplotlib.pyplot as plt
 
 def martin1(img_array,fs):
-    ms_pix = 0.4576/1000
+    ms_pix = 0.5/1000 #0.4576/1000
     ms_syn = 4.862/1000
     ms_pul = 0.572/1000
     t_pix = np.arange(int(ms_pix*fs))/fs
@@ -23,8 +23,8 @@ def martin1(img_array,fs):
         s[line,ns:ns+len(t_pul)] = np.cos(2*np.pi*1500*t_pul)
         ns += len(t_pul)
         # green scan
-        img_g = img_array[:,line,1]
-        green = np.interp(img_g, (0, 256), (1500, 2300))
+        img_g = img_array[line,:,1]
+        green = np.interp(img_g, (0, 255), (1500, 2300))
         for scan in range(len(green)):
             s[line,ns:ns+len(t_pix)] = np.cos(2*np.pi*green[scan]*t_pix)
             ns += len(t_pix)
@@ -32,8 +32,8 @@ def martin1(img_array,fs):
         s[line,ns:ns+len(t_pul)] = np.cos(2*np.pi*1500*t_pul)
         ns += len(t_pul)
         # blue scan
-        img_b = img_array[:,line,2]
-        blue = np.interp(img_b, (0, 256), (1500, 2300))
+        img_b = img_array[line,:,2]
+        blue = np.interp(img_b, (0, 255), (1500, 2300))
         for scan in range(len(blue)):
             s[line,ns:ns+len(t_pix)] = np.cos(2*np.pi*blue[scan]*t_pix)
             ns += len(t_pix)
@@ -41,8 +41,8 @@ def martin1(img_array,fs):
         s[line,ns:ns+len(t_pul)] = np.cos(2*np.pi*1500*t_pul)
         ns += len(t_pul)
         # red scan
-        img_r = img_array[:,line,0]
-        red = np.interp(img_r, (0, 256), (1500, 2300))
+        img_r = img_array[line,:,0]
+        red = np.interp(img_r, (0, 255), (1500, 2300))
         for scan in range(len(red)):
             s[line,ns:ns+len(t_pix)] = np.cos(2*np.pi*red[scan]*t_pix)
             ns += len(t_pix)
@@ -57,7 +57,7 @@ def martin1(img_array,fs):
 def martin1_decode(r,fs):
     r_img_array = np.zeros_like(img_array) #jank
     # assume already synchronized
-    ms_pix = 0.4576/1000
+    ms_pix = 0.5/1000 #0.4576/1000
     ms_syn = 4.862/1000
     ms_pul = 0.572/1000
     len_pix = int(ms_pix*fs)
@@ -72,21 +72,24 @@ def martin1_decode(r,fs):
         # remove sync, porch pulses
         ns = 0
         for pix in range(npix):
-            g = np.real(np.fft.fft(r_array[line,ns:ns+len_pix],int(fs)))
-            g_freq = np.argmax(g)
-            r_img_array[line,pix,1] = np.interp(g_freq, (1500, 2300), (0, 256))
+            g = np.fft.rfft(r_array[line,ns:ns+len_pix],int(fs))
+            g_freqs = np.fft.rfftfreq(int(fs),1/fs)
+            g_freq = g_freqs[np.argmax(g)]
+            r_img_array[line,pix,1] = np.interp(g_freq, (1500, 2300), (0, 255))
             ns += len_pix
         ns += len_pul
         for pix in range(npix):    
-            b = np.real(np.fft.fft(r_array[line,ns:ns+len_pix],int(fs)))
-            b_freq = np.argmax(b)
-            r_img_array[line,pix,2] = np.interp(b_freq, (1500, 2300), (0, 256))
+            b = np.fft.rfft(r_array[line,ns:ns+len_pix],int(fs))
+            b_freqs = np.fft.rfftfreq(int(fs),1/fs)
+            b_freq = b_freqs[np.argmax(b)]
+            r_img_array[line,pix,2] = np.interp(b_freq, (1500, 2300), (0, 255))
             ns += len_pix
         ns += len_pul
         for pix in range(npix):
-            r = np.real(np.fft.fft(r_array[line,ns:ns+len_pix],int(fs)))
-            r_freq = np.argmax(r)
-            r_img_array[line,pix,0] = np.interp(r_freq, (1500, 2300), (0, 256))
+            r = np.fft.rfft(r_array[line,ns:ns+len_pix],int(fs))
+            r_freqs = np.fft.rfftfreq(int(fs),1/fs)
+            r_freq = r_freqs[np.argmax(r)]
+            r_img_array[line,pix,0] = np.interp(r_freq, (1500, 2300), (0, 255))
             ns += len_pix
 
     return r_img_array
@@ -96,17 +99,22 @@ if __name__ == "__main__":
     fs = 48e3
     sd.default.samplerate = fs
     
-    # load image
+    # load image, cropped no compression
     img = Image.open('martin1_crop.jpg')
     img_array = np.asarray(img)
-
     martin1_sig = martin1(img_array,fs)
-
     #sd.play(martin1_sig,fs)
     #sd.wait()
-
+    # simulate at 5dB in AWGN channel
+    snr_db = 5
+    noise = np.random.randn(len(martin1_sig)) / 10**(snr_db/10)
+    martin1_sig = martin1_sig + noise
     r_img_array = martin1_decode(martin1_sig,fs)
-
     r_img = Image.fromarray(r_img_array)
+    r_img.save("data/martin_rx_nocomp.jpg")
     r_img.show()
 
+    # load image, raw
+    #img = Image.open('martin1_crop.jpg')
+    #img_array = np.asarray(img)
+    #martin1_sig = martin1(img_array,fs)
